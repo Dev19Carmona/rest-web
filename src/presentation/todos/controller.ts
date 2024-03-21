@@ -1,20 +1,11 @@
 import { Request, Response } from 'express'
-interface Todo {
-  id: number
-  text: string
-  createdAt: number
-  updatedAt?: number
-  completedAt?: number
-}
-const todos: Todo[] = [
-  { id: 1, text: 'Buy Milk', createdAt: new Date().getTime() },
-  { id: 2, text: 'Buy Bread', createdAt: new Date().getTime() },
-  { id: 3, text: 'Buy Tomato', createdAt: new Date().getTime() },
-]
+import { prisma } from '../../data/postgresql'
+import { CreateTodoDto, UpdateTodoDto } from '../../domain/dtos'
 export class TodosController {
   constructor() {}
-  public getTodos = (req: Request, res: Response) => {
+  public getTodos = async (req: Request, res: Response) => {
     try {
+      const todos = await prisma.todo.findMany()
       return res.json(todos)
     } catch (error: any) {
       if (error instanceof Error) {
@@ -24,14 +15,19 @@ export class TodosController {
       }
     }
   }
-  public getTodoById = (req: Request, res: Response) => {
+  public getTodoById = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params
-      const _id = parseFloat(id)
+      const id = +req.params.id
 
-      if (isNaN(_id)) throw new Error('INVALID_ID')
+      if (isNaN(id)) throw new Error('INVALID_ID')
+      console.log(id)
 
-      const todoFound = todos.find((todo) => todo.id === _id)
+      const todoFound = await prisma.todo.findUnique({
+        where: {
+          id: id,
+        },
+      })
+
       if (!todoFound) throw new Error('TODO_NOT_FOUND')
 
       return res.status(200).json(todoFound)
@@ -43,17 +39,14 @@ export class TodosController {
       }
     }
   }
-  public createTodo = (req: Request, res: Response) => {
+  public createTodo = async (req: Request, res: Response) => {
     try {
-      const { text } = req.body
-      const newTodo = {
-        id: todos.length + 1,
-        text,
-        createdAt: new Date().getTime(),
-      }
-
-      todos.push(newTodo)
-
+      const [error, createTodoDto] = CreateTodoDto.create(req.body)
+      if(error) throw new Error(error)
+      
+      const newTodo = await prisma.todo.create({
+        data: createTodoDto!,
+      })
       return res.status(200).json(newTodo)
     } catch (error: any) {
       if (error instanceof Error) {
@@ -63,21 +56,22 @@ export class TodosController {
       }
     }
   }
-  public updateTodo = (req: Request, res: Response) => {
+  public updateTodo = async (req: Request, res: Response) => {
     try {
-      const { text, completedAt } = req.body
       const id = +req.params.id
-      const index = todos.findIndex((todo) => todo.id === id)
-      if (!!index) throw new Error('TODO_NOT_FOUND')
-      todos.forEach((todo) => {
-        if (todo.id === id) {
-          todo.text = text || todo.text
-          todo.completedAt = new Date(completedAt).getTime() || undefined
-          todo.updatedAt = new Date().getTime()
-        }
+      const [error, updateTodoDto] = UpdateTodoDto.update({
+        ...req.body,
+        id,
+      })
+      if(error) throw new Error(error)
+
+      const query = { id }
+      const todoUpdated = await prisma.todo.update({
+        where: query,
+        data: updateTodoDto!.values,
       })
 
-      return res.status(200).json({ idUpdated: id })
+      return res.status(200).json(todoUpdated)
     } catch (error: any) {
       if (error instanceof Error) {
         return res.status(404).json({ error: error.message })
@@ -86,14 +80,14 @@ export class TodosController {
       }
     }
   }
-  public deleteTodo = (req: Request, res: Response) => {
+  public deleteTodo = async (req: Request, res: Response) => {
     try {
       const id = +req.params.id
-      const index = todos.findIndex((todo) => todo.id === id)
-      if (!!index) throw new Error(`TODO_WITH_ID:${id}_NOT_FOUND`)
-      todos.splice(index, 1)
-
-      return res.status(200).json(todos[index])
+      const query = { id }
+      const todoDeleted = await prisma.todo.delete({ where: query });
+      (todoDeleted) 
+      ? res.status(200).json(todoDeleted)
+      : res.status(404).json({error:'Todo not found'})
     } catch (error: any) {
       if (error instanceof Error) {
         return res.status(404).json({ error: error.message })

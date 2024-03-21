@@ -1,20 +1,22 @@
 import { Request, Response } from 'express'
-interface Todo {
+interface User {
   id:number;
-  text:string;
+  name:string;
+  password?:string;
   createdAt: number ;
   updatedAt?: number;
 }
-const todos: Todo[] = [
-  { id: 1, text: 'Buy Milk', createdAt: new Date().getTime() },
-  { id: 2, text: 'Buy Bread', createdAt: new Date().getTime() },
-  { id: 3, text: 'Buy Tomato', createdAt: new Date().getTime() },
+
+const users: User[] = [
+  { id: 1, name: 'Camilo', createdAt: new Date().getTime() },
+  { id: 2, name: 'Carmona', createdAt: new Date().getTime() },
+  { id: 3, name: 'Ramirez', createdAt: new Date().getTime() },
 ]
 export class UserController {
   constructor() {}
   public getUser = (req: Request, res: Response) => {
     try {
-      return res.json(todos)
+      return res.json(users)
     } catch (error) {
       return res.status(404).json({ error })
     }
